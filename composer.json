@@ -1,0 +1,38 @@
+{
+    "name": "motze92/flysystem-msgraph",
+    "version": "1.0.0",
+    "description": "Flysystem Adapter for the Microsoft Graph API - Sharepoint, OneDrive, and OneDrive for Business",
+    "keywords": [
+        "motze92",
+        "flysystem-msgraph",
+        "flysystem",
+        "msgraph",
+        "sharepoint",
+        "laravel",
+        "onedrive"
+    ],
+    "homepage": "https://github.com/motze92/flysystem-msgraph",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Moritz Mair",
+            "email": "mail@moritzmair.info",
+            "homepage": "https://moritzmair.info",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^7.2 | ^8.0",
+        "league/flysystem": "^1.1",
+        "microsoft/microsoft-graph": "^1.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "FlysystemMsgraph\\": "src"
+        }
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "dev"
+}
