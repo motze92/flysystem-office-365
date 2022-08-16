@@ -32,14 +32,17 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
 {
     protected $graph;
 
-    protected $driveID;
+    protected $config;
 
-    public function __construct()
+    public function __construct(array $config)
     {
+	$this->validateConfig($config);
+
+	$this->config = $config;
+
         $graph = new Graph();
         $graph->setAccessToken($this->getAccessToken());
         $this->graph = $graph;
-        $this->driveID = config('flysystem-office365.drive_id');
     }
 
     public function write($path, $contents, Config $config)
@@ -60,28 +63,28 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
 
     public function rename($path, $newpath)
     {
-        $path = '/drives/' . $this->driveID . '/root:/' . $path;
+        $path = '/drives/' . $this->config['drive_id'] . '/root:/' . $path;
 
         $newFilePathArray = explode('/', $newpath);
         $newFileName = array_pop($newFilePathArray);
         $newPath = count($newFilePathArray)
             ? '/drives/' .
-                $this->driveID .
+                $this->config['drive_id'] .
                 '/root:/' .
                 implode('/', $newFilePathArray)
-            : '/drives/' . $this->driveID . '/root';
+            : '/drives/' . $this->config['drive_id'] . '/root';
 
         $this->graph
             ->createRequest(
                 'PATCH',
                 '/drives/' .
-                    $this->driveID .
+                    $this->config['drive_id'] .
                     '/items/' .
                     $this->getFile($path)->getId()
             )
             ->attachBody([
                 'parentReference' => [
-                    'driveId' => $this->driveID,
+                    'driveId' => $this->config['drive_id'],
                     'id' => $this->getFile($newPath)->getId(),
                 ],
                 'name' => $newFileName,
@@ -93,29 +96,29 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
 
     public function copy($path, $newpath)
     {
-        $path = '/drives/' . $this->driveID . '/root:/' . $path;
+        $path = '/drives/' . $this->config['drive_id'] . '/root:/' . $path;
 
         $newFilePathArray = explode('/', $newpath);
         $newFileName = array_pop($newFilePathArray);
         $newPath = count($newFilePathArray)
             ? '/drives/' .
-                $this->driveID .
+                $this->config['drive_id'] .
                 '/root:/' .
                 implode('/', $newFilePathArray)
-            : '/drives/' . $this->driveID . '/root';
+            : '/drives/' . $this->config['drive_id'] . '/root';
 
         $this->graph
             ->createRequest(
                 'POST',
                 '/drives/' .
-                    $this->driveID .
+                    $this->config['drive_id'] .
                     '/items/' .
                     $this->getFile($path)->getId() .
                     '/copy'
             )
             ->attachBody([
                 'parentReference' => [
-                    'driveId' => $this->driveID,
+                    'driveId' => $this->config['drive_id'],
                     'id' => $this->getFile($newPath)->getId(),
                 ],
                 'name' => $newFileName,
@@ -127,13 +130,13 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
 
     public function delete($path)
     {
-        $path = '/drives/' . $this->driveID . '/root:/' . $path;
+        $path = '/drives/' . $this->config['drive_id'] . '/root:/' . $path;
 
         $this->graph
             ->createRequest(
                 'DELETE',
                 '/drives/' .
-                    $this->driveID .
+                    $this->config['drive_id'] .
                     '/items/' .
                     $this->getFile($path)->getId()
             )
@@ -153,16 +156,16 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
         $newDirName = array_pop($newDirPathArray);
         $parentItem = count($newDirPathArray)
             ? '/drives/' .
-                $this->driveID .
+                $this->config['drive_id'] .
                 '/root:/' .
                 implode('/', $newDirPathArray)
-            : '/drives/' . $this->driveID . '/root';
+            : '/drives/' . $this->config['drive_id'] . '/root';
 
         $dirItem = $this->graph
             ->createRequest(
                 'POST',
                 '/drives/' .
-                    $this->driveID .
+                    $this->config['drive_id'] .
                     '/items/' .
                     $this->getFile($parentItem)->getId() .
                     '/children'
@@ -191,7 +194,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
 
     public function has($path)
     {
-        $path = '/drives/' . $this->driveID . '/root:/' . $path;
+        $path = '/drives/' . $this->config['drive_id'] . '/root:/' . $path;
         try {
             $this->getFile($path);
             return true;
@@ -214,7 +217,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
 
     public function readStream($path)
     {
-        $path = '/drives/' . $this->driveID . '/root:/' . $path;
+        $path = '/drives/' . $this->config['drive_id'] . '/root:/' . $path;
 
         $file = $this->graph
             ->createRequest('GET', $path)
@@ -239,11 +242,11 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
     {
         $path = $directory
             ? '/drives/' .
-                $this->driveID .
+                $this->config['drive_id'] .
                 '/root:/' .
                 $directory .
                 ':/children'
-            : '/drives/' . $this->driveID . '/root/children';
+            : '/drives/' . $this->config['drive_id'] . '/root/children';
 
         /** @var Model\DriveItem[] $items */
         $items = $this->graph
@@ -254,7 +257,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
         return array_map(function (Model\DriveItem $item) use ($directory) {
             return [
                 'type' => 'file',
-                'path' => $directory . '/' . $item->getName(),
+                'path' => rtrim(($directory ? "{$directory}/" : '') . $item->getName(), '/'),
                 'timestamp' => $item->getLastModifiedDateTime()->getTimestamp(),
                 'size' => $item->getSize(),
                 'mimetype' => $item->getFile()
@@ -273,7 +276,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
     {
         return [
             'size' => $this->getDriveItem(
-                $path = '/drives/' . $this->driveID . '/root:/' . $path
+                $path = '/drives/' . $this->config['drive_id'] . '/root:/' . $path
             )->getSize(),
         ];
     }
@@ -281,7 +284,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
     public function getMimetype($path)
     {
         $item = $this->getDriveItem(
-            $path = '/drives/' . $this->driveID . '/root:/' . $path
+            $path = '/drives/' . $this->config['drive_id'] . '/root:/' . $path
         );
         return [
             'mimetype' => $item->getFile()
@@ -294,7 +297,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
     {
         return [
             'timestamp' => $this->getDriveItem(
-                $path = '/drives/' . $this->driveID . '/root:/' . $path
+                $path = '/drives/' . $this->config['drive_id'] . '/root:/' . $path
             )
                 ->getLastModifiedDateTime()
                 ->getTimestamp(),
@@ -304,6 +307,17 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
     public function getVisibility($path)
     {
     }
+
+    protected function validateConfig(array $config) {
+    	if (empty($config['drive_id'])
+		|| empty($config['tenant'])
+		|| empty($config['client_id'])
+		|| empty($config['client_secret'])
+	) {
+		throw new Exception('Invalid configuration for msgraphq adapter');
+	}
+    }
+		    
 
     protected function getFile(string $path): Model\File
     {
@@ -326,16 +340,16 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
         $guzzle = new \GuzzleHttp\Client();
         $url =
             'https://login.microsoftonline.com/' .
-            config('flysystem-office365.tenant') .
+            $this->config['tenant'] .
             '/oauth2/v2.0/token';
         $token = json_decode(
             $guzzle
                 ->post($url, [
                     'form_params' => [
-                        'client_id' => config('flysystem-office365.client_id'),
-                        'client_secret' => config(
-                            'flysystem-office365.client_secret'
-                        ),
+                        'client_id' => $this->config['client_id'],
+                        'client_secret' => $this->config[
+                            'client_secret'
+                        ],
                         'scope' => 'https://graph.microsoft.com/.default',
                         'grant_type' => 'client_credentials',
                     ],
