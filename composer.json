@@ -1,6 +1,6 @@
 {
     "name": "motze92/flysystem-msgraph",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Flysystem Adapter for the Microsoft Graph API - Sharepoint, OneDrive, and OneDrive for Business",
     "keywords": [
         "motze92",
