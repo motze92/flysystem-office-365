@@ -257,7 +257,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
         return array_map(function (Model\DriveItem $item) use ($directory) {
             return [
                 'type' => 'file',
-                'path' => $directory . '/' . $item->getName(),
+                'path' => rtrim(($directory ? "{$directory}/" : '') . $item->getName(), '/'),
                 'timestamp' => $item->getLastModifiedDateTime()->getTimestamp(),
                 'size' => $item->getSize(),
                 'mimetype' => $item->getFile()
