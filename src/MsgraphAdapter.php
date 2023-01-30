@@ -255,9 +255,48 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
             ->execute();
 
         return array_map(function (Model\DriveItem $item) use ($directory) {
+            if ($item->getFolder()) {
+                return [
+                    'type' => 'dir',
+                    'path' => rtrim(($directory ? "{$directory}/" : '') . $item->getName(), '/'),
+                    'timestamp' => $item->getLastModifiedDateTime()->getTimestamp(),
+                    'size' => $item->getSize(),
+                    'mimetype' => null,
+                    'visibility' => 'public',
+                ];
+            } else {
+                return [
+                    'type' => 'file',
+                    'path' => rtrim(($directory ? "{$directory}/" : '') . $item->getName(), '/'),
+                    'timestamp' => $item->getLastModifiedDateTime()->getTimestamp(),
+                    'size' => $item->getSize(),
+                    'mimetype' => $item->getFile()
+                        ? $item->getFile()->getMimeType()
+                        : null,
+                    'visibility' => 'public',
+                ];
+    
+            }
+        }, $items);
+    }
+
+    public function getMetadata($path)
+    {
+        $path = '/drives/' . $this->config['drive_id'] . '/root:/' . $path;
+        $item = $this->getDriveItem($path);
+        if ($item->getFolder()) {
+            return [
+                'type' => 'dir',
+                'path' => $path,
+                'timestamp' => $item->getLastModifiedDateTime()->getTimestamp(),
+                'size' => $item->getSize(),
+                'mimetype' => null,
+                'visibility' => 'public',
+            ];
+        } else {
             return [
                 'type' => 'file',
-                'path' => rtrim(($directory ? "{$directory}/" : '') . $item->getName(), '/'),
+                'path' => $path,
                 'timestamp' => $item->getLastModifiedDateTime()->getTimestamp(),
                 'size' => $item->getSize(),
                 'mimetype' => $item->getFile()
@@ -265,11 +304,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
                     : null,
                 'visibility' => 'public',
             ];
-        }, $items);
-    }
-
-    public function getMetadata($path)
-    {
+        }
     }
 
     public function getSize($path)
