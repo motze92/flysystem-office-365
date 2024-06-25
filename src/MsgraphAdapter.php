@@ -47,6 +47,22 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
 
     public function write($path, $contents, Config $config)
     {
+    	$path = '/drives/' . $this->config['drive_id'] . '/root:/' . $path;
+
+        $file = $this->graph
+            ->createRequest('PUT', $path . ':/content')
+            ->attachBody($contents)
+            ->setReturnType(Model\DriveItem::class)
+            ->execute()
+            ->getBody();
+        return [
+            'type' => 'file',
+            'path' => $path,
+            'timestamp' => $file->getLastModifiedDateTime()->getTimestamp(),
+            'size' => $file->getSize(),
+            'mimetype' => $file->getFile()->getMimeType(),
+            'visibility' => 'public',
+        ];
     }
 
     public function writeStream($path, $resource, Config $config)
