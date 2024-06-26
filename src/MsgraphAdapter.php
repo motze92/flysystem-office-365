@@ -53,9 +53,9 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
             ->createRequest('PUT', $path . ':/content')
             ->attachBody($contents)
             ->setReturnType(Model\DriveItem::class)
-            ->execute()
-            ->getBody();
-        return [
+            ->execute();
+
+	return [
             'type' => 'file',
             'path' => $path,
             'timestamp' => $file->getLastModifiedDateTime()->getTimestamp(),
