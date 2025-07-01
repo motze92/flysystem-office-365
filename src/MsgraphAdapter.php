@@ -308,6 +308,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
                 'size' => $item->getSize(),
                 'mimetype' => null,
                 'visibility' => 'public',
+                'webUrl' => $item->getWebUrl(),
             ];
         } else {
             return [
@@ -319,6 +320,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
                     ? $item->getFile()->getMimeType()
                     : null,
                 'visibility' => 'public',
+                'webUrl' => $item->getWebUrl(),
             ];
         }
     }
