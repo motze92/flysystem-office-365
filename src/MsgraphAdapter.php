@@ -271,7 +271,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
             ->execute();
 
         return array_map(function (Model\DriveItem $item) use ($directory) {
-            if ($item->getFolder()) {
+            if ($item->getFolder() && !$item->getPackage()) {
                 return [
                     'type' => 'dir',
                     'path' => rtrim(($directory ? "{$directory}/" : '') . $item->getName(), '/'),
@@ -300,7 +300,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
     {
         $path = '/drives/' . $this->config['drive_id'] . '/root:/' . $path;
         $item = $this->getDriveItem($path);
-        if ($item->getFolder()) {
+        if ($item->getFolder() && !$item->getPackage()) {
             return [
                 'type' => 'dir',
                 'path' => $path,
