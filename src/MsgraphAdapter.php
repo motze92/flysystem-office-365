@@ -55,7 +55,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
             ->setReturnType(Model\DriveItem::class)
             ->execute();
 
-	return [
+        return [
             'type' => 'file',
             'path' => $path,
             'timestamp' => $file->getLastModifiedDateTime()->getTimestamp(),
@@ -67,6 +67,9 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
 
     public function writeStream($path, $resource, Config $config)
     {
+        $contents = stream_get_contents($resource);
+
+        return $this->write($path, $contents, $config);
     }
 
     public function update($path, $contents, Config $config)
