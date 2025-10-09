@@ -25,10 +25,12 @@ use League\MimeTypeDetection\MimeTypeDetector;
 use Microsoft\Graph\Graph;
 use Microsoft\Graph\Model;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Psr7\StreamWrapper;
+use League\Flysystem\Adapter\CanOverwriteFiles;
 use stdClass;
 
-class MsgraphAdapter implements Flysystem\AdapterInterface
+class MsgraphAdapter implements Flysystem\AdapterInterface, CanOverwriteFiles
 {
     protected $graph;
 
@@ -74,10 +76,40 @@ class MsgraphAdapter implements Flysystem\AdapterInterface
 
     public function update($path, $contents, Config $config)
     {
+    	$path = '/drives/' . $this->config['drive_id'] . '/root:/' . $path;
+
+        try {
+            $id = $this->getFile($path)->getId();
+            $path = '/drives/' . $this->config['drive_id'] . '/items/' . $id;
+        } catch (ClientException $e) {
+            if ($e->getCode() !== 404) {
+                throw $e;
+            }
+
+            $path .= ':';
+        }
+
+        $file = $this->graph
+            ->createRequest('PUT', $path . '/content')
+            ->attachBody($contents)
+            ->setReturnType(Model\DriveItem::class)
+            ->execute();
+
+        return [
+            'type' => 'file',
+            'path' => $path,
+            'timestamp' => $file->getLastModifiedDateTime()->getTimestamp(),
+            'size' => $file->getSize(),
+            'mimetype' => $file->getFile()->getMimeType(),
+            'visibility' => 'public',
+        ];
     }
 
     public function updateStream($path, $resource, Config $config)
     {
+        $contents = stream_get_contents($resource);
+
+        return $this->update($path, $contents, $config);
     }
 
     public function rename($path, $newpath)
