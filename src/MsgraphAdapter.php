@@ -299,11 +299,25 @@ class MsgraphAdapter implements Flysystem\AdapterInterface, CanOverwriteFiles
                 ':/children'
             : '/drives/' . $this->config['drive_id'] . '/root/children';
 
-        /** @var Model\DriveItem[] $items */
-        $items = $this->graph
-            ->createRequest('GET', $path)
-            ->setReturnType(Model\DriveItem::class)
-            ->execute();
+        $items = [];
+        while (!empty($path)) {
+            $response = $this->graph
+                ->createRequest('GET', $path)
+                ->execute();
+
+            $data = $response->getBody();
+            $items = array_merge(
+                $items,
+                array_map(
+                    function ($obj) {
+                        return new Model\DriveItem($obj);
+                    },
+                    $data['value']
+                )
+            );
+
+            $path = $data['@odata.nextLink'] ?? null;
+        }
 
         return array_map(function (Model\DriveItem $item) use ($directory) {
             if ($item->getFolder() && !$item->getPackage()) {
