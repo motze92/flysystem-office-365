@@ -36,23 +36,23 @@ class MsgraphAdapter implements Flysystem\AdapterInterface, CanOverwriteFiles
 
     protected $config;
 
+    protected $tokenExpiresAt = 0;
+
     public function __construct(array $config)
     {
 	$this->validateConfig($config);
 
 	$this->config = $config;
 
-        $graph = new Graph();
-        $graph->setAccessToken($this->getAccessToken());
-        $this->graph = $graph;
+        $this->graph = new Graph();
+        $this->refreshAccessToken();
     }
 
     public function write($path, $contents, Config $config)
     {
     	$path = '/drives/' . $this->config['drive_id'] . '/root:/' . $path;
 
-        $file = $this->graph
-            ->createRequest('PUT', $path . ':/content')
+        $file = $this->createRequest('PUT', $path . ':/content')
             ->attachBody($contents)
             ->setReturnType(Model\DriveItem::class)
             ->execute();
@@ -89,8 +89,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface, CanOverwriteFiles
             $path .= ':';
         }
 
-        $file = $this->graph
-            ->createRequest('PUT', $path . '/content')
+        $file = $this->createRequest('PUT', $path . '/content')
             ->attachBody($contents)
             ->setReturnType(Model\DriveItem::class)
             ->execute();
@@ -125,8 +124,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface, CanOverwriteFiles
                 implode('/', $newFilePathArray)
             : '/drives/' . $this->config['drive_id'] . '/root';
 
-        $this->graph
-            ->createRequest(
+        $this->createRequest(
                 'PATCH',
                 '/drives/' .
                     $this->config['drive_id'] .
@@ -158,8 +156,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface, CanOverwriteFiles
                 implode('/', $newFilePathArray)
             : '/drives/' . $this->config['drive_id'] . '/root';
 
-        $this->graph
-            ->createRequest(
+        $this->createRequest(
                 'POST',
                 '/drives/' .
                     $this->config['drive_id'] .
@@ -183,8 +180,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface, CanOverwriteFiles
     {
         $path = '/drives/' . $this->config['drive_id'] . '/root:/' . $path;
 
-        $this->graph
-            ->createRequest(
+        $this->createRequest(
                 'DELETE',
                 '/drives/' .
                     $this->config['drive_id'] .
@@ -212,8 +208,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface, CanOverwriteFiles
                 implode('/', $newDirPathArray)
             : '/drives/' . $this->config['drive_id'] . '/root';
 
-        $dirItem = $this->graph
-            ->createRequest(
+        $dirItem = $this->createRequest(
                 'POST',
                 '/drives/' .
                     $this->config['drive_id'] .
@@ -270,8 +265,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface, CanOverwriteFiles
     {
         $path = '/drives/' . $this->config['drive_id'] . '/root:/' . $path;
 
-        $file = $this->graph
-            ->createRequest('GET', $path)
+        $file = $this->createRequest('GET', $path)
             ->execute()
             ->getBody();
 
@@ -301,8 +295,7 @@ class MsgraphAdapter implements Flysystem\AdapterInterface, CanOverwriteFiles
 
         $items = [];
         while (!empty($path)) {
-            $response = $this->graph
-                ->createRequest('GET', $path)
+            $response = $this->createRequest('GET', $path)
                 ->execute();
 
             $data = $response->getBody();
@@ -421,23 +414,35 @@ class MsgraphAdapter implements Flysystem\AdapterInterface, CanOverwriteFiles
     }
 		    
 
+    protected function createRequest($method, $url)
+    {
+        $this->ensureAccessToken();
+
+        return $this->graph->createRequest($method, $url);
+    }
+
     protected function getFile(string $path): Model\File
     {
-        return $this->graph
-            ->createRequest('GET', $path)
+        return $this->createRequest('GET', $path)
             ->setReturnType(Model\File::class)
             ->execute();
     }
 
     protected function getDriveItem(string $path): Model\DriveItem
     {
-        return $this->graph
-            ->createRequest('GET', $path)
+        return $this->createRequest('GET', $path)
             ->setReturnType(Model\DriveItem::class)
             ->execute();
     }
 
-    protected function getAccessToken()
+    protected function ensureAccessToken()
+    {
+        if (time() >= $this->tokenExpiresAt) {
+            $this->refreshAccessToken();
+        }
+    }
+
+    protected function refreshAccessToken()
     {
         $guzzle = new \GuzzleHttp\Client();
         $url =
@@ -460,6 +465,8 @@ class MsgraphAdapter implements Flysystem\AdapterInterface, CanOverwriteFiles
                 ->getContents()
         );
 
-        return $token->access_token;
+        // 60 Sekunden Puffer, damit der Token nicht während eines Requests abläuft
+        $this->tokenExpiresAt = time() + $token->expires_in - 60;
+        $this->graph->setAccessToken($token->access_token);
     }
 }
